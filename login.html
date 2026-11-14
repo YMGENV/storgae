@@ -19,16 +19,17 @@
   <button id="up" class="w-full rounded-full border border-slate-300 dark:border-slate-600 py-2 text-sm font-medium hover:bg-slate-100 dark:hover:bg-slate-800">Create account</button>
 </div>
 <script type="module">
-import { authenticate, sb1 } from './app.js';
 const $ = (s) => document.querySelector(s);
-if ((await sb1.auth.getSession()).data.session) location.href = 'index.html';
-async function go(mode) {
-  $('#err').classList.add('hidden');
-  try { await authenticate(mode, $('#email').value.trim(), $('#pw').value); location.href = 'index.html'; }
-  catch (e) { $('#err').textContent = e.message; $('#err').classList.remove('hidden'); }
-}
-$('#in').onclick = () => go('signin');
-$('#up').onclick = () => go('signup');
+import('./app.js').then(async (m) => {
+  if ((await m.sb1.auth.getSession()).data.session) location.href = 'index.html';
+  async function go(mode) {
+    $('#err').classList.add('hidden');
+    try { await m.authenticate(mode, $('#email').value.trim(), $('#pw').value); location.href = 'index.html'; }
+    catch (e) { $('#err').textContent = e.message; $('#err').classList.remove('hidden'); }
+  }
+  $('#in').onclick = () => go('signin');
+  $('#up').onclick = () => go('signup');
+}).catch((e) => { $('#err').textContent = 'Error: ' + e.message; $('#err').classList.remove('hidden'); });
 </script>
 </body>
 </html>

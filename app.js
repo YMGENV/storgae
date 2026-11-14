@@ -1,6 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from 'https://esm.sh/@aws-sdk/client-s3@3.600.0';
-import { getSignedUrl } from 'https://esm.sh/@aws-sdk/s3-request-presigner@3.600.0';
 import { CFG } from './config.js';
 
 const GB = 1024 ** 3, DAY = 864e5, TRASH_DAYS = 30, TOTAL = 22 * GB;
@@ -15,12 +13,20 @@ const supa = (id, cap, sb, bucket) => ({
   del: (p) => sb.storage.from(bucket).remove([p]),
 });
 const s3p = (id, cap, c) => {
-  const cl = new S3Client({ endpoint: c.endpoint, region: c.region, forcePathStyle: true, credentials: { accessKeyId: c.keyId, secretAccessKey: c.secret } });
+  let cl, sdk, sign;
+  const get = async () => { // AWS SDK loads only when a Backblaze file is actually used
+    if (!sdk) {
+      sdk = await import('https://esm.sh/@aws-sdk/client-s3@3.600.0');
+      sign = (await import('https://esm.sh/@aws-sdk/s3-request-presigner@3.600.0')).getSignedUrl;
+      cl = new sdk.S3Client({ endpoint: c.endpoint, region: c.region, forcePathStyle: true, credentials: { accessKeyId: c.keyId, secretAccessKey: c.secret } });
+    }
+    return sdk;
+  };
   return {
     id, cap,
-    put: async (p, f) => { await cl.send(new PutObjectCommand({ Bucket: c.bucket, Key: p, Body: new Uint8Array(await f.arrayBuffer()), ContentType: f.type || undefined })); },
-    url: (p) => getSignedUrl(cl, new GetObjectCommand({ Bucket: c.bucket, Key: p }), { expiresIn: 3600 }),
-    del: (p) => cl.send(new DeleteObjectCommand({ Bucket: c.bucket, Key: p })),
+    put: async (p, f) => { const s = await get(); await cl.send(new s.PutObjectCommand({ Bucket: c.bucket, Key: p, Body: new Uint8Array(await f.arrayBuffer()), ContentType: f.type || undefined })); },
+    url: async (p) => { const s = await get(); return sign(cl, new s.GetObjectCommand({ Bucket: c.bucket, Key: p }), { expiresIn: 3600 }); },
+    del: async (p) => { const s = await get(); return cl.send(new s.DeleteObjectCommand({ Bucket: c.bucket, Key: p })); },
   };
 };
 const PROVIDERS = [

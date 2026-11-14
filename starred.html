@@ -10,6 +10,6 @@
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200">
 <div id="app"></div>
-<script type="module">import { boot } from './app.js'; boot('starred');</script>
+<script type="module">import('./app.js').then(m=>m.boot('starred')).catch(e=>{document.body.innerHTML='<pre style="color:#f87171;padding:20px;white-space:pre-wrap">Error: '+e.message+'</pre>'});</script>
 </body>
 </html>
